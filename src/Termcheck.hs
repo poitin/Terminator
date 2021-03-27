@@ -1,27 +1,32 @@
 module Termcheck where
 
+import Exception
 import Term
+import Trans
 import Data.List
-import Debug.Trace
+import Data.Maybe
 
-check t = check' [] [] t []
+check (t,d) = let t' =  returnval (distill t EmptyCtx (free t) [] [] d)
+              in  check' [] (free t') t'
 
-check' cs fs (Free x) d = True
-check' cs fs (Bound i) d = True
-check' cs fs (Lambda x t) d = check' cs fs t d
-check' cs fs (Con c ts) d = all (\t -> check' cs fs t d) ts
-check' cs fs (Apply t u) d = check' cs fs t d
-check' cs fs (Call f ts) d = case lookup f d of
-                                Nothing -> error ("Undefined function: "++f)
-                                Just (xs,t) -> if f `elem` fs
-                                               then not (null (xs `intersect` cs))
-                                               else check' cs (f:fs) t d
-check' cs fs (Case t bs) d = let cs' = case t of
-                                          Free x -> x:cs
-                                          _ -> cs
-                             in all (\(c,xs,t) -> check' cs' fs t d) bs
-check' cs fs (Let x t u) d = check' cs fs t d && check' cs fs u d
-check' cs fs (Letrec f xs t u) d = let f' = rename (fst (unzip d)) f
-                                       t' = foldr concrete (renameFun f f' t) xs
-                                       u' = renameFun f f' u
-                                   in  check' cs fs u' ((f',(xs,t')):d)
+check' fs fv (Free x) = True
+check' fs fv (Bound i) = True
+check' fs fv (Lambda x t) = let x' = renameVar fv x
+                            in  check' fs (x':fv) (concrete x' t)
+check' fs fv (Con c ts) = all (check' fs fv) ts
+check' fs fv (Apply t u) = check' fs fv t && check' fs fv u
+check' fs fv (Case (Free x) bs) = all (\(c,xs,t) -> let fv' = renameVars fv xs
+                                                        xs' = take (length xs) fv'
+                                                    in  check' (add x fs) fv' (foldr concrete t xs')) bs
+check' fs fv (Case t bs) = check' fs fv t && all (\(c,xs,t) -> let fv' = renameVars fv xs
+                                                                   xs' = take (length xs) fv'
+                                                               in  check' fs fv' (foldr concrete t xs')) bs
+check' fs fv (Let x t u) = check' fs fv t && check' fs fv u
+check' fs fv (Unfold t u) = let f = renameVar (map fst fs) "f"
+                                xs = free u
+                            in  check' ((f,(xs,[])):fs) fv (concrete f u)
+check' fs fv (Fold (Free f) u) = case lookup f fs of
+                                    Nothing -> error "Unmatched fold"
+                                    Just (xs,cs) -> not (null (xs `intersect` cs))
+
+add x = map (\(f,(xs,cs)) -> (f,(xs,x:cs)))
