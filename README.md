@@ -12,6 +12,7 @@ POT> :help
 :term                   To print the current term  
 :eval                   To evaluate the current program  
 :distill                To distill the current program  
+:termcheck              To check whether the current program always terminates
 :quit                   To quit  
 :help                   To print this message  
 
