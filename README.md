@@ -63,7 +63,7 @@ Allocations: 8
 
 To check whether the program always terminates:
 
-POT> :termcheck
+POT> :termcheck  
 True
 
 To quit from the program:
