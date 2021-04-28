@@ -113,3 +113,12 @@ toplevel p = do putStr "POT> "
 loadFile :: String -> IO (Maybe ([String],[(String,([String],Term))]))
 
 loadFile f = do x <-  doesFileExist (f++".pot")
+                if   x
+                     then do putStrLn ("Loading file: "++f++".pot")
+                             c <-  readFile (f++".pot")
+                             case parseModule c of
+                                Left s -> do putStrLn ("Could not parse program in file "++f++".pot: "++ show s)
+                                             return Nothing
+                                Right t -> return (Just t)
+                     else do putStrLn ("No such file: "++f++".pot")
+                             return Nothing
